@@ -12,7 +12,8 @@ def get_aws_creds():
     """
     fetch aws credentials from taskcluster secrets.
     """
-    url = 'http://{}/secrets/v1/secret/repo:github.com/mozilla-releng/OpenCloudConfig:updateworkertype'.format(os.environ.get('TC_PROXY', 'taskcluster'))
+    url = f"http://{os.environ.get('TC_PROXY', 'taskcluster')}/secrets/v1/secret/repo:github.com/mozilla-releng/OpenCloudConfig:updateworkertype"
+
     secret = requests.get(url).json()['secret']
     return secret['aws_tc_account_id'], secret['TASKCLUSTER_AWS_ACCESS_KEY'], secret['TASKCLUSTER_AWS_SECRET_KEY']
 
@@ -76,8 +77,11 @@ def get_commit(sha, org='mozilla-releng', repo='OpenCloudConfig'):
         return cache[sha[:7]]
     gh_token = os.environ.get('GH_TOKEN')
     if gh_token is not None:
-        url = 'https://api.github.com/repos/{}/{}/commits/{}'.format(org, repo, sha)
-        response = requests.get(url, headers={'Authorization': 'token {}'.format(gh_token)}).json()
+        url = f'https://api.github.com/repos/{org}/{repo}/commits/{sha}'
+        response = requests.get(
+            url, headers={'Authorization': f'token {gh_token}'}
+        ).json()
+
         if 'commit' in response:
             cache[sha[:7]] = response['commit']
             return cache[sha[:7]]
@@ -93,10 +97,17 @@ def get_commit(sha, org='mozilla-releng', repo='OpenCloudConfig'):
 
 def seed_commit_cache(repo_id='52878668', pages=5):
     if cache == {}:
-        for page in range(1, pages):
-            url = 'https://api.github.com/repositories/{}/commits?page={}'.format(repo_id, pages)
+        for _ in range(1, pages):
+            url = f'https://api.github.com/repositories/{repo_id}/commits?page={pages}'
             gh_token = os.environ.get('GH_TOKEN')
-            response = requests.get(url) if gh_token is None else requests.get(url, headers={'Authorization': 'token {}'.format(gh_token)})
+            response = (
+                requests.get(url)
+                if gh_token is None
+                else requests.get(
+                    url, headers={'Authorization': f'token {gh_token}'}
+                )
+            )
+
             if response.status_code == 200:
                 for commit in response.json():
                     cache[commit['sha'][:7]] = commit['commit']
@@ -118,7 +129,8 @@ def post_provisioner_config(worker_type, provisioner_config):
     """
     send provisioner configuration for the specified worker type to taskcluster.
     """
-    url = 'http://{}/aws-provisioner/v1/worker-type/{}/update'.format(os.environ.get('TC_PROXY', 'taskcluster'), worker_type)
+    url = f"http://{os.environ.get('TC_PROXY', 'taskcluster')}/aws-provisioner/v1/worker-type/{worker_type}/update"
+
     return requests.post(url, json=provisioner_config)
 
 

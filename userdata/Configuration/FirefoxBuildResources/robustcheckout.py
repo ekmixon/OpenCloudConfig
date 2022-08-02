@@ -70,12 +70,10 @@ def supported_hg():
 
 
 def peerlookup(remote, v):
-    # TRACKING hg46 4.6 added commandexecutor API.
-    if util.safehasattr(remote, 'commandexecutor'):
-        with remote.commandexecutor() as e:
-            return e.callcommand(b'lookup', {b'key': v}).result()
-    else:
+    if not util.safehasattr(remote, 'commandexecutor'):
         return remote.lookup(v)
+    with remote.commandexecutor() as e:
+        return e.callcommand(b'lookup', {b'key': v}).result()
 
 
 @command(b'robustcheckout', [
@@ -130,10 +128,13 @@ def robustcheckout(ui, url, dest, upstream=None, revision=None, branch=None,
         raise error.Abort(b'cannot specify both --revision and --branch')
 
     # Require revision to look like a SHA-1.
-    if revision:
-        if len(revision) < 12 or len(revision) > 40 or not re.match(b'^[a-f0-9]+$', revision):
-            raise error.Abort(b'--revision must be a SHA-1 fragment 12-40 '
-                              b'characters long')
+    if revision and (
+        len(revision) < 12
+        or len(revision) > 40
+        or not re.match(b'^[a-f0-9]+$', revision)
+    ):
+        raise error.Abort(b'--revision must be a SHA-1 fragment 12-40 '
+                          b'characters long')
 
     sharebase = sharebase or ui.config(b'share', b'pool')
     if not sharebase:
